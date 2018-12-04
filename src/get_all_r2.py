@@ -1,9 +1,12 @@
 from os import listdir
 from os.path import join
 import gzip
-import statistics
 from sklearn import linear_model
 from sklearn.metrics import r2_score
+
+def median_high(l):
+    l_sorted = sorted(l)
+    return l_sorted[len(l_sorted)/2]
 
 chrom = "chr21"
 file_end = ".pval.signal.bedGraph.wig.gz"
@@ -61,7 +64,7 @@ for mark_i in range(len(all_marks)):
                     all_cells.append(cell)
                     all_r2s.append(r2_value)
             ## after looking at all celltypes that has values for the pair of marks, find median, max, and min
-            median_r2 = statistics.median_high(all_r2s)
+            median_r2 = median_high(all_r2s)
             median_cell = all_cells[all_r2s.index(median_r2)]
             min_r2 = min(all_r2s)
             min_cell = all_cells[all_r2s.index(min_r2)]
