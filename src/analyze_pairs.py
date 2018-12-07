@@ -21,5 +21,5 @@ print pairs
 print max_r2s
 print median_r2s
 
-print [x for _,x in sorted(zip(median_r2s,pairs), reverse=True)]
-print [x for _,x in sorted(zip(max_r2s,pairs), reverse=True)]
+print [(x, y) for y,x in sorted(zip(median_r2s,pairs), reverse=True)]
+print [(x, y) for (y,x) in sorted(zip(max_r2s,pairs), reverse=True)]
