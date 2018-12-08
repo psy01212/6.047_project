@@ -1,6 +1,7 @@
 import random
 from os.path import join
 import gzip
+import math
 import tensorflow as tf
 
 random.seed(42)
@@ -69,10 +70,11 @@ conv1_depth = 8
 conv2_filter_size = 5
 conv2_depth = 16
 
-learning_rate = 0.01
+batch_size = 50
+learning_rate = 0.0001
 fc_num_hidden = 64
-keep_prob = 0.6
-reg_lambda = 0.0001
+keep_prob = 0.7
+##reg_lambda = 0.0001
 
 ## convolutional layers
 tf.reset_default_graph()
@@ -109,24 +111,27 @@ y_conv = build_two_fc_layers(h_pool2_flat, [W_fc1, W_fc2], [b_fc1, b_fc2], keep_
 
 ## loss is mse + l2 loss
 mse = tf.losses.mean_squared_error(y_conv, train_y)
-loss = mse + reg_lambda * (tf.nn.l2_loss(conv1_filter) + tf.nn.l2_loss(conv2_filter) + tf.nn.l2_loss(W_fc1) + tf.nn.l2_loss(W_fc2))
+loss = mse
+##loss = loss + reg_lambda * (tf.nn.l2_loss(conv1_filter) + tf.nn.l2_loss(conv2_filter) + tf.nn.l2_loss(W_fc1) + tf.nn.l2_loss(W_fc2))
 
-train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
 ##### starting training
 print 'Initializing variables...'
 sess = tf.Session()
 init = tf.global_variables_initializer()
+saver = tf.train.Saver(max_to_keep=20)
+
 sess.run(init)
+
+global_step = 0
 
 print "Starting training..."
 # every step is a full round of 30 test cell types + 9 validation cell types
-for epoch in range(10):
-    epoch_loss = 0
-    epoch_mse = 0
+for epoch in range(20):
+    epoch_loss = 0.
+    epoch_mse = 0.
     for cell in test_cells:
-        cell_loss = 0
-        cell_mse = 0
         ## get all xs
         all_xs = []
         for mark_i in range(len(x_marks)):
@@ -153,22 +158,38 @@ for epoch in range(10):
             for line in f:
                 all_ys.append([float(line.decode("utf-8"))])
         print "Done reading files for cell " + cell
-        for i in range(len(all_ys) - x_dim):
-            if i%(len(all_ys)/100) == 0:
-                print(i/(len(all_ys)/100))
-            batch_x = [all_xs[i:i+x_dim]]
-            batch_y = [all_ys[i+mid_index]]
-            
+
+        cell_loss = 0.
+        cell_mse = 0.
+        num_samples = 0
+        all_possible_indices = range((len(all_ys) - x_dim)/batch_size * batch_size)
+        random.shuffle(all_possible_indices)
+        for i in range(len(all_possible_indices) / batch_size):
+            batch_x = []
+            batch_y = []
+            for j in range(batch_size):
+                start_index = all_possible_indices[i*batch_size + j]
+                batch_x.append(all_xs[start_index:start_index+x_dim])
+                batch_y.append(all_ys[start_index+mid_index])
             feed_dict = {train_x: batch_x, train_y: batch_y}
             _, batch_loss, batch_mse = sess.run([train_step, loss, mse],
                                                       feed_dict=feed_dict)
-            cell_loss += batch_loss
-            cell_mse += batch_mse
+            if not math.isnan(batch_loss) and not math.isnan(batch_mse):
+                cell_loss += batch_loss
+                cell_mse += batch_mse
+                num_samples += 1
+            # print updates to keep track
+            if i%(len(all_ys)/(batch_size*100)) == 0:
+                print i/(len(all_ys)/(batch_size*100))
+                print "Current average cell loss: " + str(cell_loss / num_samples)
+                print "Current average cell mse: " + str(cell_mse / num_samples)
         epoch_loss += cell_loss
         epoch_mse += cell_mse
-        print cell
-        print "Cell loss: " + str(cell_loss)
-        print "Cell mse: " + str(cell_mse)
+        print "Samples in cell: " + str(num_samples)
+        print "Average cell loss: " + str(cell_loss / num_samples)
+        print "Average cell mse: " + str(cell_mse / num_samples)
     print "EPOCH DONE"
     print "Epoch loss: " + str(epoch_loss)
     print "Epoch mse: " + str(epoch_mse)
+    saver.save(sess, join("saved_models", "model"), global_step = global_step)
+    global_step += 1
