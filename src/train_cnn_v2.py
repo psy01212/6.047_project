@@ -130,6 +130,7 @@ global_step = 0
 print "Starting training..."
 # every step is a full round of 30 test cell types + 9 validation cell types
 for epoch in range(20):
+    num_samples_epoch = 0
     epoch_loss = 0.
     epoch_mse = 0.
     for cell in test_cells:
@@ -168,7 +169,7 @@ for epoch in range(20):
 
         cell_loss = 0.
         cell_mse = 0.
-        num_samples = 0
+        num_samples_cell = 0
         all_possible_indices = range((len(all_ys) - x_dim)/batch_size * batch_size)
         random.shuffle(all_possible_indices)
         for i in range(len(all_possible_indices) / batch_size):
@@ -184,19 +185,15 @@ for epoch in range(20):
             if not math.isnan(batch_loss) and not math.isnan(batch_mse):
                 cell_loss += batch_loss
                 cell_mse += batch_mse
-                num_samples += 1
-            # print updates to keep track
-            if i%(len(all_ys)/(batch_size*100)) == 0:
-                print i/(len(all_ys)/(batch_size*100))
-                print "Current average cell loss: " + str(cell_loss / num_samples)
-                print "Current average cell mse: " + str(cell_mse / num_samples)
+                num_samples_cell += 1
+        num_samples_epoch += num_samples_cell
         epoch_loss += cell_loss
         epoch_mse += cell_mse
-        print "Samples in cell: " + str(num_samples)
-        print "Average cell loss: " + str(cell_loss / num_samples)
-        print "Average cell mse: " + str(cell_mse / num_samples)
+        print "Samples in cell: " + str(num_samples_cell)
+        print "Average cell loss: " + str(cell_loss / num_samples_cell)
+        print "Average cell mse: " + str(cell_mse / num_samples_cell)
     print "EPOCH DONE"
-    print "Epoch loss: " + str(epoch_loss)
-    print "Epoch mse: " + str(epoch_mse)
+    print "Average epoch loss: " + str(epoch_loss / num_samples_epoch)
+    print "Average epoch mse: " + str(epoch_mse / num_samples_epoch)
     saver.save(sess, join("saved_models", "model"), global_step = global_step)
     global_step += 1
