@@ -133,7 +133,7 @@ for epoch in range(20):
     num_samples_epoch = 0
     epoch_loss = 0.
     epoch_mse = 0.
-    for cell in test_cells:
+    for cell in train_cells:
         ## get all xs
         all_xs = []
         all_ys = []
